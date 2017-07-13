@@ -1,23 +1,23 @@
-var conf = {
-    width: 800,
-    height: 600,
-    renderer: Phaser.CANVAS,
-    parent: 'intro',
-    transparent: false,
-    antialias: false,
-    state: this,
-    resolution: 2
-};
-
-var game = new Phaser.Game(1440, 600, Phaser.CANVAS, 'phaser-example', { preload: preload, create: create, update: update});
-var background, swing, object1, object2, isOverContact, brick = null, speed = 2, arrowRight, arrowLeft, marks, buttonMarks, buttonGame;
+//Объявление переменных
+var doc = window;
+var game = new Phaser.Game(doc.innerWidth - 15, doc.innerHeight - 15, Phaser.CANVAS, 'phaser-example', { preload: preload, create: create, update: update});
+var background, swing, formForObject, brick = null, placeObjects, numPlaces = 0, numPage = 1, maxPage = 2;
+var object1, object2, object3, object4, object5, object6, object7, object8, bodies = [];
+var buttonMarks, buttonGame, arrowButtonRight, arrowButtonLeft;
+var speed = 2, arrowRight, arrowLeft, marks, isOverContact;
 var mouseBody, isMouseMove = false, x = 135, y = 500, gameOn = false;
 var mouseConstraint, spring = null, spring2;
 var posStay = [148, 192, 236, 280, 324, 368, 412, 458, 546 ,588, 632, 676, 720, 764, 808, 852];
 var count = 0, bodyMove, movePointer, a, isCreateSpring = false, positionForObject = {x: null, y: null}, isCreateSpring2 = false, body1;
-var objects = [], movingObject = null, posStayObject = [], isNeedRotate = false, accuracyRotate = 0.005, textMass = [];
+var objects = [], movingObject = null, posStayObject = [], isNeedRotate = false, accuracyRotate = 0.005, textMass = [], scrollHeight, scrollWidth;
 
+//Функция Phaser по умолчанию, загружает ихображения в кэш браузера
 function preload(){
+  game.load.image("wizball", "assets/wizball.png");
+  game.load.image("gem", "assets/gem.png");
+  game.load.image("mushroom", "assets/mushroom.png");
+  game.load.image("firstaid", "assets/firstaid.png");
+  game.load.image("diamond", "assets/diamond.png");
   game.load.image("swing", "assets/swing.png");
   game.load.image("marks", "assets/marks.png");
   game.load.image("brick", "assets/brick.png");
@@ -28,10 +28,19 @@ function preload(){
   game.load.spritesheet("arrowLeft", "assets/arrow_left.png", 40, 40);
   game.load.spritesheet("buttonMarksOnOff", "assets/button_marks_on_off.png", 67, 16.5);
   game.load.spritesheet("buttonGameOnOff", "assets/button_on_off_game.png", 67, 16.5);
+  game.load.spritesheet("buttonArrow", "assets/arrow-button.png", 112, 95);
+  game.load.image("placeObjects", "assets/form_object.png")
 }
 
+//Функция Phaser по умолчанию, вызывается один раз за игру и создает нужные для работы объекты
 function create(){
+  background = game.add.image(0, 0, "background");
+  background.height = game.height;
+  background.width = game.width;
+
   game.physics.startSystem(Phaser.Physics.P2JS);
+
+  createPlaceObjects();
 
   marks = game.add.sprite(500, 500, "marks");
   marks.anchor.x = 0.5;
@@ -49,46 +58,7 @@ function create(){
     posStayObject.push(object);
   }
 
-  object1 = game.add.sprite(500, 200, "ball");
-  object1.selectSwing = null;
-  object1.anchor.x = 0.5;
-  object1.anchor.y = 1;
-
-  object2 = game.add.sprite(600, 200, "ball");
-  object2.selectSwing = null;
-  object2.anchor.x = 0.5;
-  object2.anchor.y = 1;
-
-  object3 = game.add.sprite(700, 200, "ball");
-  object3.selectSwing = null;
-  object3.anchor.x = 0.5;
-  object3.anchor.y = 1;
-
-  swing = game.add.sprite(500, 500, "swing");
-
-  game.physics.p2.enable([swing, object1, object2, object3]);
-
-  object1.body.collideWorldBounds = true;
-  object1.body.spring = null;
-  object1.body.posStay = 0;
-  object1.alpha = 0.5;
-  object1.body.mass = 10;
-  object1.body.beginPosX = object1.position.x;
-  object1.body.beginPosY = object1.position.y;
-
-  object2.body.collideWorldBounds = true;
-  object2.body.spring = null;
-  object2.body.posStay = 0;
-  object2.body.mass = 5;
-  object2.body.beginPosX = object2.position.x;
-  object2.body.beginPosY = object2.position.y;
-
-  object3.body.collideWorldBounds = true;
-  object3.body.spring = null;
-  object3.body.posStay = 0;
-  object3.body.mass = 5;
-  object3.body.beginPosX = object3.position.x;
-  object3.body.beginPosY = object3.position.y;
+  createObjects();
 
   swing.body.collideWorldBounds = true;
 
@@ -106,16 +76,18 @@ function create(){
   game.input.onUp.add(release, this);
   game.input.addMoveCallback(move, this);
 
-  objects.push(object1);
-  objects.push(object2);
-  objects.push(object3);
-
   createTextMass();
+  listenerButtonFormRight();
+  listenerButtonFormLeft();
 }
 
+//Функция Phaser по умолчанию, вызывается каждый кадр
 function update(){
   for (var i = 0; i < objects.length; i++){
     objects[i].body.setZeroVelocity();
+    objects[i].body.rotateLeft(0);
+    objects[i].body.rotateRight(0);
+    objects[i].body.rotation = 0;
   }
   marks.rotation = swing.rotation
 
@@ -125,10 +97,10 @@ function update(){
 
   for (var i = 0; i < objects.length; i++){
     if (objects[i].body.spring !== null){
-      updatePos(objects[i].body.posStay);
+      updatePosBrick(objects[i].body.posStay);
       objects[i].body.rotation = 0;
       objects[i].body.x = positionForObject.x;
-      objects[i].body.y = positionForObject.y;
+      objects[i].body.y = positionForObject.y - objects[i].height / 2;
     }
   }
   updateBalanceArrow();
@@ -140,6 +112,214 @@ function update(){
   }
 }
 
+//Функция для создания формы с объектами
+function createPlaceObjects(){
+  placeObjects = game.add.sprite(300, 100, "placeObjects");
+  var x  = doc.innerWidth - placeObjects.width * 1.5;
+  var y  = 200;
+  placeObjects.x = x;
+  placeObjects.y = y;
+  arrowButtonLeft = game.add.button(67, 33, 'arrowRight', listenerButtonFormLeft, this, 0, 0, 0);
+  arrowButtonLeft.anchor.x = 0;
+  arrowButtonLeft.anchor.y = 0.5;
+  x = placeObjects.x;
+  y = placeObjects.y + placeObjects.height / 2;
+  arrowButtonLeft.x = x;
+  arrowButtonLeft.y = y;
+  arrowButtonRight = game.add.button(67, 33, 'arrowLeft', listenerButtonFormRight, this, 0, 0, 0);
+  arrowButtonRight.anchor.x = 1;
+  arrowButtonRight.anchor.y = 0.5;
+  x = placeObjects.x + placeObjects.width;
+  y = placeObjects.y + placeObjects.height / 2;
+  arrowButtonRight.x = x;
+  arrowButtonRight.y = y;
+}
+
+//Функция для создания объектов
+function createObjects(){
+  var pos = getPositionAtForm();
+  object1 = game.add.sprite(500, 200, "ball");
+  object1.selectSwing = null;
+  object1.anchor.x = 0.5;
+  object1.anchor.y = 1;
+  object1.position.x = pos.x;
+  object1.position.y = pos.y;
+  object1.homePage = 1;
+  objects.push(object1);
+
+  pos = getPositionAtForm();
+  object2 = game.add.sprite(600, 200, "ball");
+  object2.selectSwing = null;
+  object2.anchor.x = 0.5;
+  object2.anchor.y = 1;
+  object2.position.x = pos.x;
+  object2.position.y = pos.y;
+  object2.homePage = 1;
+  objects.push(object2);
+
+  pos = getPositionAtForm();
+  object3 = game.add.sprite(700, 200, "ball");
+  object3.selectSwing = null;
+  object3.anchor.x = 0.5;
+  object3.anchor.y = 1;
+  object3.position.x = pos.x;
+  object3.position.y = pos.y;
+  object3.homePage = 1;
+  objects.push(object3);
+
+  pos = getPositionAtForm();
+  object4 = game.add.sprite(700, 200, "wizball");
+  object4.selectSwing = null;
+  object4.anchor.x = 0;
+  object4.anchor.y = 0;
+  object4.position.x = pos.x;
+  object4.position.y = pos.y;
+  object4.homePage = 1;
+  objects.push(object4);
+
+  pos = getPositionAtForm();
+  object5 = game.add.sprite(700, 200, "diamond");
+  object5.selectSwing = null;
+  object5.anchor.x = 0;
+  object5.anchor.y = 0;
+  object5.position.x = pos.x;
+  object5.position.y = pos.y;
+  object5.homePage = 2;
+  objects.push(object5);
+
+  pos = getPositionAtForm();
+  object6 = game.add.sprite(700, 200, "mushroom");
+  object6.selectSwing = null;
+  object6.anchor.x = 0;
+  object6.anchor.y = 0;
+  object6.position.x = pos.x;
+  object6.position.y = pos.y;
+  object6.homePage = 2;
+  objects.push(object6);
+
+  pos = getPositionAtForm();
+  object7 = game.add.sprite(700, 200, "gem");
+  object7.selectSwing = null;
+  object7.anchor.x = 0;
+  object7.anchor.y = 0;
+  object7.position.x = pos.x;
+  object7.position.y = pos.y;
+  object7.homePage = 2;
+  objects.push(object7);
+
+  pos = getPositionAtForm();
+  object8 = game.add.sprite(700, 200, "firstaid");
+  object8.selectSwing = null;
+  object8.anchor.x = 0;
+  object8.anchor.y = 0;
+  object8.position.x = pos.x;
+  object8.position.y = pos.y;
+  object8.homePage = 2;
+  objects.push(object8);
+
+  swing = game.add.sprite(500, 500, "swing");
+
+  game.physics.p2.enable([swing, object1, object2, object3, object4, object5, object6, object7, object8]);
+
+  objects.forEach(function (item, i, objects){
+    bodies.push(item.body);
+    item.i = i;
+    item.body.collideWorldBounds = true;
+    item.body.spring = null;
+    item.body.posStay = 0;
+    item.body.mass = game.rnd.between(1, 20);
+    item.body.beginPosX = item.position.x;
+    item.body.beginPosY = item.position.y;
+  })
+}
+
+//Слушатель левой кнопки на форме
+function listenerButtonFormLeft(){
+  if ( numPage !== 1){
+    numPage--;
+    updateForm();
+  }
+}
+
+//Слушатель правой кнопки на форме
+function listenerButtonFormRight(){
+  if (numPage !== maxPage){
+    numPage++;
+    updateForm();
+  }
+}
+
+//Функция возвращающая позицию объекта на форме
+function getPositionAtForm(){
+  var pos = {x:0, y:0};
+  switch(numPlaces){
+    case 4:{
+      numPlaces = 0;
+    }
+    case 0:{
+      pos.x = placeObjects.x + placeObjects.width / 4;
+      pos.y = placeObjects.y + placeObjects.height / 4;
+      numPlaces++;
+    }break;
+    case 1:{
+      pos.x = placeObjects.x + placeObjects.width * 0.75;
+      pos.y = placeObjects.y + placeObjects.height / 4;
+      numPlaces++;
+    }break;
+    case 2:{
+      pos.x = placeObjects.x + placeObjects.width / 4;
+      pos.y = placeObjects.y + placeObjects.height * 0.75;
+      numPlaces++;
+    }break;
+    case 3:{
+      pos.x = placeObjects.x + placeObjects.width * 0.75;
+      pos.y = placeObjects.y + placeObjects.height * 0.75;
+      numPlaces++;
+    }break;
+  }
+  return pos;
+}
+
+//Функция для обновления формы с объектами при удалении с качель объектов
+function updateForm(){
+  var max = (numPage * 4) - 1;
+  var min = max - 4;
+  bodies = [];
+  for (var j = min + 1; j <= max; j++){
+    console.log(j)
+    objects[j].alpha = 1;
+    objects[j].body.collideWorldBounds = true;
+    bodies.push(objects[j].body);
+    objects[j].alive = true;
+    textMass[j].alpha = 1;
+  }
+  if (min !== 0){
+    for (var i = 0; i <= min; i++){
+      if (objects[i].body.spring === null){
+        objects[i].alpha = 0;
+        objects[i].body.collideWorldBounds = false;
+        objects[i].alive = false;
+        textMass[i].alpha = 0;
+      } else {
+        bodies.push(objects[i].body);
+      }
+    }
+  }
+  if ((max + 1) !== objects.length){
+    for (var i = (max + 1); i < objects.length; i++){
+      if (objects[i].body.spring === null){
+        objects[i].alpha = 0;
+        objects[i].body.collideWorldBounds = false;
+        objects[i].alive = false;
+        textMass[i].alpha = 0;
+      } else {
+        bodies.push(objects[i].body);
+      }
+    }
+  }
+}
+
+//Слушатель кнопки вкл/выкл маркеры
 function listenerButtonMarks(){
   if (marks.alpha === 1){
     buttonMarks.frame = 1;
@@ -150,6 +330,7 @@ function listenerButtonMarks(){
   }
 }
 
+//Слушатель кнопки вкл/выкл игру
 function listenerButtonGame(){
   if (gameOn){
     gameOn = false;
@@ -160,17 +341,17 @@ function listenerButtonGame(){
   }
 }
 
+//Функция срабатывающая при нажатии кнопки мыши. Входной параметр pointer - координаты курсора
 function click(pointer) {
-  console.log("click: ");
 
-  var bodies = game.physics.p2.hitTest(pointer.position, [ object1.body, object2.body, object3.body]);
+  var bodiesHit = game.physics.p2.hitTest(pointer.position, bodies);
 
       // p2 uses different coordinate system, so convert the pointer position to p2's coordinate system
   var physicsPos = [game.physics.p2.pxmi(pointer.position.x), game.physics.p2.pxmi(pointer.position.y)];
 
-  if (bodies.length){
+  if (bodiesHit.length){
     for (var i = 0; i < objects.length; i++){
-      if (objects[i].body.id === bodies[0].id){
+      if (objects[i].body.id === bodiesHit[0].id){
         movingObject = objects[i];
       }
     }
@@ -183,7 +364,7 @@ function click(pointer) {
       isNeedRotate = true;
     }
 
-    var clickedBody = bodies[0];
+    var clickedBody = bodiesHit[0];
 
     var localPointInBody = [0, 0];
           // this function takes physicsPos and coverts it to the body's local coordinate system
@@ -196,16 +377,16 @@ function click(pointer) {
 
 }
 
+//Функция срабатывающая при отпускании кнопки мыши
 function release() {
-      // remove constraint from object's body
   game.physics.p2.removeConstraint(mouseConstraint);
   bodyMove = false;
   if (brick !== null){
     brick.kill();
   }
   if (positionForObject.mustCreate){
-    movingObject.body.x = positionForObject.x + (13);
-    movingObject.body.y = positionForObject.y - (movingObject.body.height / 2);
+    movingObject.body.x = positionForObject.x;
+    movingObject.body.y = positionForObject.y;
     movingObject.body.spring = game.physics.p2.createSpring(swing, movingObject, 0, 0, 100);
     posStayObject[movingObject.body.posStay].mass = movingObject.body.mass;
     positionForObject.mustCreate = false;
@@ -215,16 +396,25 @@ function release() {
   } else if (movingObject !== null){
     movingObject.body.x = movingObject.body.beginPosX;
     movingObject.body.y = movingObject.body.beginPosY;
+    if ( movingObject.homePage !== numPage){
+      movingObject.alpha = 0;
+      movingObject.body.collideWorldBounds = false;
+      movingObject.alive = false;
+      textMass[movingObject.i].alpha = 0;
+      updateForm();
+    }
   }
 
 }
 
+//Функция для перемещения объекта. Входной параметр pointer - координаты курсора
 function move(pointer) {
       // p2 uses different coordinate system, so convert the pointer position to p2's coordinate system
   mouseBody.position[0] = game.physics.p2.pxmi(pointer.position.x);
   mouseBody.position[1] = game.physics.p2.pxmi(pointer.position.y);
 }
 
+//Функция для проверки куда можно поставить объект
 function checkSwing(){
   movePointer = game.input.mousePointer;
   if (bodyMove){
@@ -252,7 +442,8 @@ function checkSwing(){
   }
 }
 
-function updatePos(number){
+//Функция для обновления позиции кирпичика
+function updatePosBrick(number){
   var alfa, a, b, c;
   var brickTest = game.add.sprite(posStay[number] - 13, swing.body.y, "brick");
   brickTest.anchor.x = 1;
@@ -268,6 +459,7 @@ function updatePos(number){
   positionForObject.y = brickTest.y + c - 10;
 }
 
+//Функция для проверки качели на новые объекты, которые могли быть на нее положены
 function checkMass(){
   var forceLeft = 0, forceRight = 0, forceDiff = 0, alfa = 0;
   for (var i = 0; i < posStayObject.length; i++){
@@ -283,7 +475,7 @@ function checkMass(){
 
   alfa = 0.005 * forceDiff;
   if (alfa > 0.22){
-    alfa = 0.22;
+    alfa = 0.21;
   }
 
   var speedRotate = forceDiff / 10000;
@@ -292,6 +484,11 @@ function checkMass(){
   }
 }
 
+//Функция для поворота качели.
+//Входные параметры alfa - угол на который нужно повернуть,
+//speedRotate - скорось поворота,
+//forceLeft - сила которую оказывают на качели объекты, которые лежат на левой стороне качели
+//forceRigth - сила которую оказывают на качели объекты, которые лежат на правой стороне качели
 function rotateSwing(alfa, speedRotate, forceLeft, forceRight){
   swing.body.rotateLeft(0);
   swing.body.rotateRight(0);
@@ -329,26 +526,33 @@ function rotateSwing(alfa, speedRotate, forceLeft, forceRight){
         swing.body.rotation += 0.01;
       }
     }
+  } else if (forceLeft > forceRight){
+    swing.body.rotation = -alfa;
+  } else {
+    swing.body.rotation = alfa;
   }
 }
 
+//Функция для создания текста с массой объекта
 function createTextMass(){
   for (var i = 0; i < objects.length; i++){
-    var text = game.add.text(objects[i].position.x, (objects[i].position.y - objects[i].height), objects[i].body.mass + " кг", { font: "20px Arial", fill: "#ff0044", align: "center" });
+    var text = game.add.text(objects[i].position.x, (objects[i].position.y - objects[i].height / 4), objects[i].body.mass + " кг", { font: "20px Arial", fill: "#ff0044", align: "center" });
     text.anchor.setTo(0.5, 0.5);
     textMass.push(text);
   }
 }
 
+//Функция для обновления позиции текста с массой объекта
 function updatePositionTextMass(){
   for (var i = 0; i < objects.length; i++){
     textMass[i].position.x = objects[i].position.x;
-    textMass[i].position.y = objects[i].position.y - objects[i].height;
+    textMass[i].position.y = objects[i].position.y - objects[i].height / 1.2;
   }
 }
 
+//Обновление стрелок с обозначением баланса качели
 function updateBalanceArrow(){
-  if (swing.rotation < 0.0001 && swing.rotation > -0.0001){
+  if (swing.rotation < 0.0005 && swing.rotation > -0.0005){
     arrowLeft.frame = 1;
     arrowRight.frame = 1;
   } else {

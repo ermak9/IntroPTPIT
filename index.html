@@ -1,14 +1,35 @@
 <!doctype html>
-<html lang = "en">
+<html>
+  <meta charset = "utf-8">
+    <meta http-equiv = "Cache-control" content = "no-cache">
+    <meta http-equiv = "Pragma" content = "no-cache">
+    <meta http-equiv = "Expires" content = "0">
+  </meta>
+  <style>
+    html { overflow:  hidden; }
+    body {
+      padding: 0px;
+      margin: 0px;
+    }
+  </style>
   <head>
-    <meta charset="utf-8">
-    <style>
-      html { overflow:  hidden; }
-    </style>
+    <script type="text/javascript" src="js/scriptjava.js"></script>
   </head>
   <body>
-    <div id = "game"></div>
-    <script src = "phaser.js"></script>
-    <script src = "code.js"></script>
+    <script src = "js/phaser.js" defer></script>
+    <script src = "js/phaser.checkbox.js" defer></script>
+    <script src = "js/Boot.js" defer></script>
+    <script src = "js/MainMenu.js" defer></script>
+    <script src = "js/Preloader.js" defer></script>
+    <script type="text/javascript" language="javascript">
+    window.onload = function(){
+      var game = new Phaser.Game("100%", "100%", Phaser.CANVAS, "Tutorial");
+
+      game.state.add("Boot", Game.Boot);
+      game.state.add("Preloader", Game.Preloader);
+      game.state.add("MainMenu", Game.MainMenu);
+      game.state.start("Boot");
+    }
+    </script>
   </body>
 </html>
